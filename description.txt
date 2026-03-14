@@ -1,0 +1,43 @@
+PHI De-identification System
+Objective: Automatically detect and redact Protected Health Information (PHI) from clinical medical reports — both plain text and PDF format — replacing sensitive data with placeholders like [NAME], [DATE], [HOSPITAL], etc.
+
+Model: BiLSTM + CRF
+The core is a Bidirectional LSTM with a Conditional Random Field layer on top, implemented in PyTorch.
+LayerPurposeEmbeddingConverts tokens to 128-dim vectorsBiLSTM (2-layer)Captures context from both directionsDropout (0.3)RegularizationLinear ProjectionMaps hidden states to tag scoresCRFModels tag dependencies, enforces valid BIO sequences
+
+Loss function: CRF Negative Log-Likelihood
+Decoding: Viterbi algorithm (finds globally optimal tag sequence)
+Tagging scheme: BIO (Begin, Inside, Outside)
+
+
+Entities Detected (8 types)
+NAME · DOCTOR · HOSPITAL · LOCATION · DATE · PHONE · EMAIL · ID
+
+Dataset
+SplitSentencesTrain56,000Dev12,000Test~500+
+
+Synthetic data generated using Faker (30 clinical sentence templates, Indian hospital names, real date/phone formats)
+Real data extracted from PDF reports using pdfminer.six + regex PHI detection
+Labels were manually corrected in BIO format
+
+
+Pipeline
+PDF Reports / Raw Text
+       ↓
+Text Extraction (pdfminer.six)
+       ↓
+BIO Tagging + Dataset Split (70/15/15)
+       ↓
+BiLSTM + CRF Training (Adam, grad clipping)
+       ↓
+Entity-level F1 Evaluation (span-level, not token accuracy)
+       ↓
+PHI Redaction → [NAME], [DATE], [HOSPITAL]...
+       ↓
+Streamlit UI (text input + PDF upload)
+
+Key Design Choices
+
+Entity-level span F1 used for evaluation, not token accuracy — gives a realistic measure of how well complete entity spans are captured
+Regex fallback for phones, emails, IDs when model isn't loaded (demo mode)
+Streamlit UI supports both live text entry and PDF upload with color-coded entity highlighting and downloadable redacted output
